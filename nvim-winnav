@@ -16,10 +16,11 @@ case "$1" in
 *) exit 1 ;;
 esac
 
-for pid in $(pstree -p "$ACTIVE_WINDOW_PID" -T | sed -E 's/-*([a-zA-Z0-9]+)\(([0-9]+)\)/\1 \2\n/g' | grep ^nvim | cut -d' ' -f2); do
-	pid=$(pgrep -P "$pid" -f 'nvim --embed' || echo "$pid")
-	nvim --server "$XDG_RUNTIME_DIR/nvim.$pid.0" --remote-expr "nvim_exec2('lua require(\"winnav\").nav(\"$DIRECTION\")', {})" >/dev/null 2>&1
-	exit 0
-done
+if nvim_pid=$(pstree -plaT "$ACTIVE_WINDOW_PID" | rg -o "nvim,([0-9]+) --embed" -r '$1' -m 1); then
+	if [[ $(ps -o state= -q "$(ps -o ppid:1= -q "$nvim_pid")") == "S" ]]; then
+		nvim --server "$XDG_RUNTIME_DIR/nvim.$nvim_pid.0" --remote-expr "nvim_exec2('lua require(\"winnav\").nav(\"$DIRECTION\")', {})" >/dev/null 2>&1
+		exit 0
+	fi
+fi
 
 $FOCUS "$1"
